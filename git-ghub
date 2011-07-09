@@ -1,0 +1,131 @@
+#!/usr/bin/env php
+<?php
+require_once(dirname(__FILE__) . '/Xterm.php');
+// parse args
+
+$commands = array('issues');
+
+$repo = $user = '';
+$command = '';
+$cmdargs = array();
+if ($argc >= 2 && !in_array($argv[1], $commands)) {
+	list(, $user, $repo) = $argv;
+	$command = isset($argv[3]) ? $argv[3] : null;
+	$cmdargs = $command ? array_slice($argv, 4) : array();
+} elseif (isset($argv[1]) && in_array($argv[1], $commands)) {
+	$remotes = explode("\n", `git remote -v 2> /dev/null`);
+	if (empty($remotes[0])) die("Some idiot didn't specify a user or repo...\n");
+	foreach ($remotes as $remote) {
+		if (preg_match('/git@github.com:(?<user>\w+)\/(?<repo>\w+)\.git \(fetch\)/', $remote, $matches))
+			list($user, $repo) = array($matches['user'], $matches['repo']);
+		break;
+	}
+
+	$command = isset($argv[1]) ? $argv[1] : null;
+	$cmdargs = $command ? array_slice($argv, 2) : array();
+} else {
+	die("WTF?!\n");
+}
+
+$api_url    = 'https://api.github.com';
+$repos_url  = $api_url . '/repos/' . $user . '/' . $repo;
+$issues_url = $repos_url . '/issues';
+$labels_url = $repos_url . '/labels';
+$milestone_url = $repos_url . '/milestones';
+
+switch ($command)
+{
+case 'issues':
+	printf("%-'-80s\n\n", 'Issues');
+
+	$issues_url_full = $issues_url;
+	$ticket_list = array();
+	$detail = false;
+	$milestone = false;
+
+	if (isset($cmdargs[0]) && ctype_digit($cmdargs[0])) {
+		$issues_url_full .= '/' . intval($cmdargs[0]);
+		$ticket_list = json_decode('[' . file_get_contents($issues_url_full) . ']');
+		$detail = true;
+	} else {
+		if (!isset($cmdargs[0])) {
+			$cmdargs[0] = '';
+		} elseif (!in_array($cmdargs[0], array('closed', 'open', 'milestone'))) {
+			echon('Valid arguments to "issues" are "closed", "open", or <issue number>');die;
+		}
+
+		switch ($cmdargs[0])
+		{
+		case 'closed':
+			$issues_url_full .= '?state=closed';
+			break;
+		case 'open':
+			$issues_url_full .= '?state=open';
+			break;
+		case 'milestone':
+			$issues_url_full .= '?milestone=' . $cmdargs[1];
+			$milestone = $cmdargs[1];
+			break;
+		}
+
+		if (in_array('detail', $cmdargs)) $detail = true;
+
+		$ticket_list = json_decode(file_get_contents($issues_url_full));
+		usort($ticket_list, function ($a, $b) { return $a->number < $b->number ? -1 : 1; });
+	}
+
+	if ($milestone) {
+		$milestone = json_decode(file_get_contents($milestone_url . '/' . $milestone));
+		$mlstnstr = 'Milestone: ' . $milestone->title . ' ';
+		echo $mlstnstr;
+
+		$len = 80 - strlen($mlstnstr) - 3;
+		$issues = $milestone->closed_issues + $milestone->open_issues;
+		$pct    = $milestone->closed_issues / $issues;
+
+		printf(" |", $milestone->open_issues, $issues);
+		echo "\033[48;5;" . Xterm::htmlToSgr('00ff00') . "m";
+		$green = ceil($len * $pct);
+		$black = $len - $green;
+		echo str_repeat(' ', $green) . "\033[0m";
+		echon(str_repeat(' ', $black) . "|");
+
+
+		echon("     | " . str_replace("\n", "\n     | ", wordwrap($milestone->description, 73)));
+
+		echo "\n";
+	}
+
+	foreach($ticket_list as $ticket) {
+	
+		$label_string = '';
+		foreach ($ticket->labels as $label) {
+			 $label_string .= "\033[48;5;" . Xterm::htmlToSgr($label->color) . 'm' . "\033[0m";
+		}
+
+		$number_color = "\033[38;5;" . Xterm::htmlToSgr($ticket->state == 'open' ? '00ff00' : 'ff0000') . 'm' . $ticket->number . "\033[0m";
+
+		printf("%5s %s %s\n", $number_color, $ticket->title, $label_string);
+
+		if (!$detail) continue;
+		printf("%-'-80s\n", "     ");
+		echon("     | " . str_replace("\n", "\n     | ", wordwrap($ticket->body, 73)));
+		echon();
+	}
+
+	echo "\n";
+
+	$labels = json_decode(file_get_contents($labels_url));
+	if (!empty($labels)) {
+		printf("%-'-80s\n", 'Labels');
+		foreach ($labels as $label) {
+			echo "\033[48;5;" . Xterm::htmlToSgr($label->color) . 'm' . " \033[0m-" . $label->name . "  ";
+		}
+		echon();
+	}
+
+
+	break;
+}
+
+function echon($string = '') { echo $string . "\n"; }
