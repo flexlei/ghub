@@ -28,3 +28,15 @@ Installation (for now)
 
 * Clone into your bin directory
 * symlink git-ghub into ~/bin/
+
+Screenshots
+
+* issues
+![issues command][issues]
+
+* milestone view
+![milestone view][milestone]
+
+
+[issues]: https://github.com/shawncplus/ghub/raw/gh-docs/issues.png
+[milestone]: https://github.com/shawncplus/ghub/raw/gh-docs/milestone.png
