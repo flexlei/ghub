@@ -100,7 +100,7 @@ case 'issues':
 	
 		$label_string = '';
 		foreach ($ticket->labels as $label) {
-			 $label_string .= "\033[48;5;" . Xterm::htmlToSgr($label->color) . 'm' . "\033[0m";
+			 $label_string .= "\033[48;5;" . Xterm::htmlToSgr($label->color) . 'm ' . "\033[0m";
 		}
 
 		$number_color = "\033[38;5;" . Xterm::htmlToSgr($ticket->state == 'open' ? '00ff00' : 'ff0000') . 'm' . $ticket->number . "\033[0m";
