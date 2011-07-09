@@ -32,9 +32,13 @@ Installation (for now)
 Screenshots
 
 * issues
+
+
 ![issues command][issues]
 
 * milestone view
+
+
 ![milestone view][milestone]
 
 
