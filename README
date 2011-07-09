@@ -18,3 +18,7 @@ Commands
 Requires
 * PHP >= 5.3
 * Git... obviously
+
+Installation (for now)
+* Clone into your bin directory
+* symlink git-ghub into ~/bin/
